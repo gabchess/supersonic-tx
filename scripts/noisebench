@@ -1,0 +1,21 @@
+#!/bin/sh
+set -eu
+
+if command -v cargo >/dev/null 2>&1; then
+  cargo_bin=$(command -v cargo)
+elif [ -x "${HOME:-}/.cargo/bin/cargo" ]; then
+  cargo_bin="${HOME}/.cargo/bin/cargo"
+else
+  printf '%s\n' \
+    'Cargo was not found. Install Rust from https://rustup.rs or add $HOME/.cargo/bin to PATH.' >&2
+  exit 127
+fi
+
+repo_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+if command -v git >/dev/null 2>&1; then
+  source_commit=$(git -C "$repo_root" rev-parse --verify HEAD 2>/dev/null || true)
+  if [ -n "$source_commit" ]; then
+    export NOISEBENCH_SOURCE_COMMIT="$source_commit"
+  fi
+fi
+exec "$cargo_bin" run --manifest-path "$repo_root/Cargo.toml" --release --locked -- "$@"
