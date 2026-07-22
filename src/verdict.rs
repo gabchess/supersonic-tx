@@ -13,8 +13,9 @@ use crate::{
     statistics::{analyze_dataset, StatisticalEvidence, StatisticsError},
 };
 
-pub const UNTESTED_CHANNELS: [&str; 8] = [
+pub const UNTESTED_CHANNELS: [&str; 9] = [
     "RPC and network timing",
+    "candidate-conditioned timing, program, asset, and bundle size",
     "validator-private information",
     "funding graphs and external identity",
     "history before the dataset begins",
@@ -93,14 +94,7 @@ impl ReasonCode {
     }
 }
 
-pub fn audit_path(path: &Path) -> ReportV1 {
-    match audit_path_result(path) {
-        Ok(report) => report,
-        Err(error) => invalid_report(ReasonCode::SchemaInvalid, error.to_string()),
-    }
-}
-
-pub fn audit_path_result(path: &Path) -> Result<ReportV1, AuditError> {
+pub fn audit_path(path: &Path) -> Result<ReportV1, AuditError> {
     audit_path_result_inner(path, false)
 }
 
@@ -114,6 +108,7 @@ fn audit_path_result_inner(
 ) -> Result<ReportV1, AuditError> {
     let dataset = match load_dataset(path) {
         Ok(dataset) => dataset,
+        Err(error @ IntegrityError::Io(_)) => return Err(error.into()),
         Err(error) => {
             return Ok(invalid_report(
                 reason_for_integrity(&error),
@@ -399,6 +394,8 @@ fn reason_for_integrity(error: &IntegrityError) -> ReasonCode {
 
 #[derive(Debug, Error)]
 pub enum AuditError {
+    #[error(transparent)]
+    Integrity(#[from] IntegrityError),
     #[error(transparent)]
     Statistics(#[from] StatisticsError),
 }

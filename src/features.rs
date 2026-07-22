@@ -1,36 +1,31 @@
 use std::collections::BTreeMap;
 
-use sha2::{Digest, Sha256};
 use thiserror::Error;
 
 use crate::{integrity::LoadedDataset, schema::Candidate};
 
-const BUNDLE_NAMES: [&str; 9] = [
+// ponytail: V1 omits trace-level context until candidate-linked interactions can rank it.
+const BUNDLE_NAMES: [&str; 6] = [
     "intercept",
     "amount_digits",
     "amount_roundness",
     "ordinal_ratio",
-    "candidate_count",
     "amount_rank",
     "nearest_amount_gap",
-    "program_bucket",
-    "asset_bucket",
 ];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum FeatureChannel {
     DestinationHistory,
     AmountHistory,
-    Cadence,
     Transitions,
     PriorOrdinal,
 }
 
 impl FeatureChannel {
-    pub const ALL: [Self; 5] = [
+    pub const ALL: [Self; 4] = [
         Self::DestinationHistory,
         Self::AmountHistory,
-        Self::Cadence,
         Self::Transitions,
         Self::PriorOrdinal,
     ];
@@ -39,7 +34,6 @@ impl FeatureChannel {
         match self {
             Self::DestinationHistory => "destination_history",
             Self::AmountHistory => "amount_history",
-            Self::Cadence => "cadence",
             Self::Transitions => "transitions",
             Self::PriorOrdinal => "prior_ordinal",
         }
@@ -118,7 +112,6 @@ struct History {
     decisions: u64,
     destinations: BTreeMap<String, (u64, u64)>,
     amounts: BTreeMap<u128, u64>,
-    times: Vec<u64>,
     previous_destinations: Vec<String>,
     previous_amounts: Vec<u128>,
     ordinals: BTreeMap<u32, u64>,
@@ -216,11 +209,8 @@ fn candidate_values(
         digits,
         trailing / digits.max(1.0),
         candidate.ordinal as f64 / (trace.candidates.len() - 1) as f64,
-        trace.candidates.len() as f64,
         rank / (trace.candidates.len() - 1) as f64,
         (nearest as f64 + 1.0).ln(),
-        stable_bucket(&trace.bundle.program_id),
-        stable_bucket(&trace.bundle.asset_id),
     ];
     let FeatureMode::Longitudinal { omit } = mode else {
         return values;
@@ -256,19 +246,6 @@ fn candidate_values(
             .min()
             .unwrap_or(0);
         values.extend([count as f64 / denom, (distance as f64 + 1.0).ln()]);
-    }
-    if omit != Some(FeatureChannel::Cadence) {
-        let mean = if history.times.len() < 2 {
-            0.0
-        } else {
-            history
-                .times
-                .windows(2)
-                .map(|pair| pair[1] - pair[0])
-                .sum::<u64>() as f64
-                / (history.times.len() - 1) as f64
-        };
-        values.extend([history.times.len() as f64, mean]);
     }
     if omit != Some(FeatureChannel::Transitions) {
         values.push(
@@ -312,10 +289,6 @@ fn feature_names(mode: FeatureMode) -> Vec<&'static str> {
             &["amount_frequency", "amount_distance"][..],
         ),
         (
-            FeatureChannel::Cadence,
-            &["cadence_count", "cadence_mean_delta"][..],
-        ),
-        (
             FeatureChannel::Transitions,
             &["amount_transition_frequency"][..],
         ),
@@ -336,7 +309,6 @@ fn update_history(
     trace: &crate::schema::PublicTrace,
 ) -> Result<(), FeatureError> {
     history.decisions += 1;
-    history.times.push(trace.observed_time_bucket);
     history.previous_destinations = trace
         .candidates
         .iter()
@@ -359,11 +331,6 @@ fn update_history(
         *history.ordinals.entry(candidate.ordinal).or_default() += 1;
     }
     Ok(())
-}
-
-fn stable_bucket(value: &str) -> f64 {
-    let digest = Sha256::digest(value.as_bytes());
-    u64::from_be_bytes(digest[..8].try_into().unwrap()) as f64 / u64::MAX as f64
 }
 
 #[derive(Debug, Error)]

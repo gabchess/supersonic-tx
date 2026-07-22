@@ -295,6 +295,9 @@ fn validate_sequences_and_linkage(
 
 fn read_jsonl<T: DeserializeOwned>(path: &Path) -> Result<Vec<T>, IntegrityError> {
     let bytes = fs::read(path)?;
+    if !bytes.is_empty() && bytes.last() != Some(&b'\n') {
+        return Err(IntegrityError::JsonLineNotTerminated);
+    }
     let text = std::str::from_utf8(&bytes).map_err(|_| IntegrityError::InvalidUtf8)?;
     text.lines()
         .enumerate()
@@ -367,6 +370,8 @@ pub enum IntegrityError {
     InvalidUtf8,
     #[error("JSONL line {0} is empty")]
     EmptyJsonLine(usize),
+    #[error("JSONL records must end with a newline")]
+    JsonLineNotTerminated,
     #[error("dataset cannot be canonically encoded")]
     Canonicalization,
     #[error("coverage evidence is internally inconsistent")]

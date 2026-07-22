@@ -11,7 +11,7 @@ use noisebench::{
 fn invalid_evidence_precedes_every_statistical_result() {
     let dir = support::write_valid_dataset();
     support::mutate_first_label(dir.path());
-    let report = audit_path(dir.path());
+    let report = audit_path(dir.path()).unwrap();
     assert_eq!(report.verdict, Verdict::InvalidEvidence);
     assert_eq!(report.primary_reason_code, ReasonCode::ContentHashMismatch);
     assert_eq!(report.exit_code, 4);
@@ -24,6 +24,7 @@ fn supported_copy_is_narrow_and_lists_untested_channels() {
     assert_eq!(report.verdict, Verdict::ClaimSupported);
     assert!(text.contains("This is not a claim that the planner is private."));
     assert!(text.contains("RPC and network timing"));
+    assert!(text.contains("candidate-conditioned timing, program, asset, and bundle size"));
 }
 
 #[test]
@@ -35,7 +36,7 @@ fn ordinary_dataset_cannot_self_apply_the_control_label() {
     noisebench::integrity::seal_dataset(&mut manifest, &public, &labels).unwrap();
     noisebench::integrity::write_canonical_dataset(dir.path(), &manifest, &public, &labels)
         .unwrap();
-    assert_eq!(audit_path(dir.path()).control_label, None);
+    assert_eq!(audit_path(dir.path()).unwrap().control_label, None);
 }
 
 #[test]
@@ -49,7 +50,7 @@ fn ordinary_audit_rejects_fixture_only_expectations() {
     noisebench::integrity::seal_dataset(&mut manifest, &public, &labels).unwrap();
     noisebench::integrity::write_canonical_dataset(dir.path(), &manifest, &public, &labels)
         .unwrap();
-    let report = audit_path(dir.path());
+    let report = audit_path(dir.path()).unwrap();
     assert_eq!(report.verdict, Verdict::InvalidEvidence);
     assert_eq!(report.primary_reason_code, ReasonCode::SchemaInvalid);
 }
@@ -110,7 +111,7 @@ fn coverage_power_and_shadow_fail_before_claim_evaluation() {
     noisebench::integrity::seal_dataset(&mut manifest, &public, &labels).unwrap();
     noisebench::integrity::write_canonical_dataset(dir.path(), &manifest, &public, &labels)
         .unwrap();
-    let report = audit_path(dir.path());
+    let report = audit_path(dir.path()).unwrap();
     assert_eq!(report.primary_reason_code, ReasonCode::CoverageBelowMinimum);
     assert_eq!(
         report.reason_codes,
@@ -213,7 +214,7 @@ fn channel_contribution_json_uses_the_frozen_flat_shape() {
 #[test]
 fn valid_underpowered_dataset_stops_before_model_training() {
     let dir = support::write_valid_dataset();
-    let report = audit_path(dir.path());
+    let report = audit_path(dir.path()).unwrap();
     assert_eq!(report.verdict, Verdict::InsufficientThreat);
     assert_eq!(
         report.primary_reason_code,
@@ -225,13 +226,19 @@ fn valid_underpowered_dataset_stops_before_model_training() {
 #[test]
 fn aggregate_power_cannot_hide_an_empty_per_seed_split() {
     let dir = support::write_aggregate_powered_split_gap_dataset();
-    let report = audit_path(dir.path());
+    let report = audit_path(dir.path()).unwrap();
     assert_eq!(report.verdict, Verdict::InsufficientThreat);
     assert_eq!(
         report.primary_reason_code,
         ReasonCode::SamplePowerBelowMinimum
     );
     assert_eq!(report.exit_code, 3);
+}
+
+#[test]
+fn missing_dataset_stays_an_operational_error() {
+    let temp = tempfile::tempdir().unwrap();
+    assert!(audit_path(&temp.path().join("missing")).is_err());
 }
 
 #[test]

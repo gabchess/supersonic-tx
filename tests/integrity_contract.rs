@@ -26,6 +26,20 @@ fn changed_label_is_invalid_evidence() {
 }
 
 #[test]
+fn jsonl_records_require_a_final_newline() {
+    let dir = support::write_valid_dataset();
+    let path = dir.path().join("public-traces.jsonl");
+    let mut bytes = std::fs::read(&path).unwrap();
+    assert_eq!(bytes.pop(), Some(b'\n'));
+    std::fs::write(path, bytes).unwrap();
+
+    assert!(matches!(
+        load_dataset(dir.path()),
+        Err(IntegrityError::JsonLineNotTerminated)
+    ));
+}
+
+#[test]
 fn unknown_and_low_coverage_are_valid_but_insufficient() {
     for (expected, status) in [
         (None, CoverageStatus::Unknown),

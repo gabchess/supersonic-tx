@@ -1,7 +1,7 @@
 use std::{fs, path::PathBuf, process::ExitCode};
 
 use clap::{error::ErrorKind, Parser, Subcommand};
-use noisebench::{report::render_terminal, run_suite, verdict::audit_path_result, SuiteReport};
+use noisebench::{report::render_terminal, run_suite, verdict::audit_path, SuiteReport};
 use serde::Serialize;
 
 const EX_USAGE: u8 = 64;
@@ -64,7 +64,7 @@ fn main() -> ExitCode {
 fn execute(cli: Cli) -> Result<u8, String> {
     match cli.command {
         Command::Audit { dataset, json } => {
-            let report = audit_path_result(&dataset).map_err(|error| error.to_string())?;
+            let report = audit_path(&dataset).map_err(|error| error.to_string())?;
             if let Some(path) = json {
                 write_json(&path, &report)?;
             }

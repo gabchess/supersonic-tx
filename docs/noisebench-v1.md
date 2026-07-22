@@ -174,7 +174,7 @@ NoiseBench canonicalizes parsed typed values rather than hashing source formatti
 
 1. Sort public traces by `(seed, actor_id, sequence_index, trace_id)`.
 2. Sort private labels by `trace_id`.
-3. Serialize compact JSON with struct field order and no floating-point values.
+3. Serialize compact JSON with object keys sorted lexicographically at every depth and no floating-point values.
 4. Add one newline after each JSONL record.
 5. For the manifest component, remove `hashes.manifest_sha256` and `hashes.dataset_sha256`, then serialize compact JSON.
 6. Compute SHA-256 for the manifest bytes, public bytes, and label bytes.
@@ -197,22 +197,22 @@ The crate exposes `seal_dataset` and `write_canonical_dataset` for Rust exporter
 
 The bundle-only view has:
 
-- intercept;
+- a model intercept, excluded from z-scoring and L2 regularization;
 - amount digit count and roundness;
-- normalized ordinal, candidate count, amount rank, and nearest amount gap;
-- stable SHA-256 program and asset buckets.
+- normalized ordinal, amount rank, and nearest amount gap.
 
-The longitudinal view adds five channels:
+The longitudinal view adds four channels:
 
 | Channel | Inputs |
 | --- | --- |
 | `destination_history` | Destination frequency, recency, and prior-bundle destination recurrence. |
 | `amount_history` | Exact amount frequency and distance from prior amounts. |
-| `cadence` | Prior public row count and mean observed-time delta. |
 | `transitions` | Prior-bundle amount recurrence. |
 | `prior_ordinal` | Candidate ordinal recurrence. |
 
 For each `(seed, actor_id)`, NoiseBench sorts public rows, builds the current candidates from a read-only prior-history snapshot, then appends the current public row. Current or future private labels never enter history.
+
+Candidate-conditioned timing, program, asset, and bundle-size interactions are outside V1. Those trace-level values are identical for every candidate in a decision, so a linear within-trace ranker cannot attribute candidate information to them without explicit interactions.
 
 ## Attacker and metric
 

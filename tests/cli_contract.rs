@@ -81,6 +81,21 @@ fn report_write_failures_are_internal_errors() {
 }
 
 #[test]
+fn missing_dataset_is_an_internal_error() {
+    let temp = tempdir().unwrap();
+    let missing = temp.path().join("missing");
+    let output = noisebench()
+        .args(["audit", missing.to_str().unwrap()])
+        .output()
+        .unwrap();
+
+    assert_eq!(output.status.code(), Some(70));
+    assert!(String::from_utf8(output.stderr)
+        .unwrap()
+        .starts_with("noisebench: "));
+}
+
+#[test]
 fn valid_underpowered_evidence_exits_three() {
     let dataset = support::write_valid_dataset();
     let output = noisebench()

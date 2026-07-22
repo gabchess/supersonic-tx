@@ -46,6 +46,37 @@ fn bundle_view_has_no_longitudinal_channel() {
 }
 
 #[test]
+fn candidate_invariant_context_is_not_presented_as_rankable() {
+    let dataset = support::two_step_dataset();
+    let bundle = build_feature_view(&dataset, FeatureMode::BundleOnly).unwrap();
+    let longitudinal =
+        build_feature_view(&dataset, FeatureMode::Longitudinal { omit: None }).unwrap();
+
+    for name in [
+        "candidate_count",
+        "program_bucket",
+        "asset_bucket",
+        "cadence_count",
+        "cadence_mean_delta",
+    ] {
+        assert!(!bundle[0].feature_names().contains(&name), "{name}");
+        assert!(!longitudinal[0].feature_names().contains(&name), "{name}");
+    }
+}
+
+#[test]
+fn first_feature_is_the_attacker_intercept() {
+    let dataset = support::two_step_dataset();
+    let rows = build_feature_view(&dataset, FeatureMode::BundleOnly).unwrap();
+
+    assert_eq!(rows[0].feature_names()[0], "intercept");
+    assert!(rows[0]
+        .candidates
+        .iter()
+        .all(|candidate| candidate.values[0] == 1.0));
+}
+
+#[test]
 fn future_private_labels_do_not_change_prior_feature_rows() {
     let original = support::two_step_dataset();
     let mut changed = support::two_step_dataset();

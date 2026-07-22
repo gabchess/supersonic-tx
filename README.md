@@ -9,6 +9,13 @@ A transaction can look ambiguous once and still identify its owner after repeate
 You need Rust 1.89 or newer.
 
 ```bash
+git clone --branch feat/noisebench-audit-public --single-branch https://github.com/gabchess/supersonic-tx.git
+cd supersonic-tx
+```
+
+Then run the pinned reference suite:
+
+```bash
 ./scripts/noisebench suite fixtures/
 ```
 
@@ -102,9 +109,9 @@ The manifest component excludes `manifest_sha256` and `dataset_sha256` from its 
 
 ## Tested channels
 
-V1 tests public bundle shape, amount shape, program and asset buckets, destination history, amount history, cadence, amount transitions, and prior ordinal recurrence.
+V1 tests candidate amount shape and ordinal, destination history, amount history, amount transitions, and prior ordinal recurrence.
 
-V1 does not test RPC or network timing, validator-private information, funding graphs, external identity, pre-dataset history, recovery transactions, cross-wallet coordination, compromised hosts, or any observer signal absent from the schema. Reports carry this list.
+V1 does not test candidate-conditioned timing, program, asset, or bundle-size interactions; RPC or network timing; validator-private information; funding graphs; external identity; pre-dataset history; recovery transactions; cross-wallet coordination; compromised hosts; or any observer signal absent from the schema. Reports carry this list.
 
 ## Development
 
